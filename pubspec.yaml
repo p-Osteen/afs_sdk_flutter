@@ -1,0 +1,22 @@
+name: afs_gateway
+description: "AFS Benefit Payment Gateway SDK for Flutter - Secure hosted
+  payment page integration with InAppWebView."
+version: 1.0.0
+homepage: https://www.diodeinfosolutions.com/
+repository: https://github.com/p-Osteen/afs_sdk_flutter
+
+environment:
+  sdk: ^3.10.7
+  flutter: ">=3.3.0"
+
+dependencies:
+  encrypt: ^5.0.3
+  flutter:
+    sdk: flutter
+  flutter_inappwebview: ^6.1.5
+  http: ^1.6.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
