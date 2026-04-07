@@ -7,16 +7,12 @@ import '../services/benefit_service.dart';
 
 class BenefitPaymentView extends StatefulWidget {
   final String paymentPageUrl;
-  final String responseUrl;
-  final String errorUrl;
   final BenefitService benefitService;
   final Function(Map<String, dynamic>) onPaymentResult;
 
   const BenefitPaymentView({
     super.key,
     required this.paymentPageUrl,
-    required this.responseUrl,
-    required this.errorUrl,
     required this.benefitService,
     required this.onPaymentResult,
   });
@@ -28,6 +24,9 @@ class BenefitPaymentView extends StatefulWidget {
 class _BenefitPaymentViewState extends State<BenefitPaymentView> {
   InAppWebViewController? webViewController;
   bool _isFinished = false;
+  // These URLs are intercepted by the JS-Bridge; they do not need to exist
+  final responseUrl = 'https://benefit.internal/success';
+  final errorUrl = 'https://benefit.internal/error';
 
   void _finishWithResult(Map<String, dynamic> result) {
     if (_isFinished) return;
@@ -115,9 +114,8 @@ class _BenefitPaymentViewState extends State<BenefitPaymentView> {
       }
     }
 
-    final responseUrl = widget.responseUrl.toLowerCase();
-    final errorUrl = widget.errorUrl.toLowerCase();
-    if (urlLower.startsWith(responseUrl) || urlLower.startsWith(errorUrl)) {
+    if (urlLower.startsWith(responseUrl.toLowerCase()) ||
+        urlLower.startsWith(errorUrl.toLowerCase())) {
       if (kDebugMode) {
         debugPrint('[BENEFIT] Redirect URL matched: $url');
       }
@@ -173,8 +171,9 @@ class _BenefitPaymentViewState extends State<BenefitPaymentView> {
         body: _isFinished
             ? const Center(child: CircularProgressIndicator())
             : InAppWebView(
-                initialUrlRequest:
-                    URLRequest(url: WebUri(widget.paymentPageUrl)),
+                initialUrlRequest: URLRequest(
+                  url: WebUri(widget.paymentPageUrl),
+                ),
                 initialSettings: InAppWebViewSettings(
                   javaScriptEnabled: true,
                   useShouldOverrideUrlLoading: true,
@@ -219,7 +218,8 @@ class _BenefitPaymentViewState extends State<BenefitPaymentView> {
                 onWebViewCreated: (controller) {
                   if (kDebugMode) {
                     debugPrint(
-                        '[BENEFIT_WEBVIEW] Loading: ${widget.paymentPageUrl}');
+                      '[BENEFIT_WEBVIEW] Loading: ${widget.paymentPageUrl}',
+                    );
                   }
                   webViewController = controller;
 
@@ -231,28 +231,33 @@ class _BenefitPaymentViewState extends State<BenefitPaymentView> {
                           Map<String, dynamic>.from(args[1] as Map);
 
                       if (kDebugMode) {
-                        debugPrint('[BENEFIT_JS_BRIDGE] Intercepted Form Data to: $action');
+                        debugPrint(
+                          '[BENEFIT_JS_BRIDGE] Intercepted Form Data to: $action',
+                        );
                       }
-                      
-                      final responseUrl = widget.responseUrl.toLowerCase();
-                      final errorUrl = widget.errorUrl.toLowerCase();
 
-                      if (action.contains(responseUrl) || action.contains(errorUrl)) {
+                      if (action.contains(responseUrl.toLowerCase()) ||
+                          action.contains(errorUrl.toLowerCase())) {
                         final trandata = data['trandata'];
                         final errorText = data['errorText'];
 
                         if (trandata != null) {
                           if (kDebugMode) {
-                            debugPrint('[BENEFIT_JS_BRIDGE] Success: Found trandata');
+                            debugPrint(
+                              '[BENEFIT_JS_BRIDGE] Success: Found trandata',
+                            );
                           }
                           _decryptAndFinish(trandata.toString());
                         } else if (errorText != null) {
                           if (kDebugMode) {
-                            debugPrint('[BENEFIT_JS_BRIDGE] Error: Found errorText -> $errorText');
+                            debugPrint(
+                              '[BENEFIT_JS_BRIDGE] Error: Found errorText -> $errorText',
+                            );
                           }
                           _finishWithResult({
                             "error": errorText,
-                            "paymentId": data['paymentId'] ?? data['PaymentID'] ?? '',
+                            "paymentId":
+                                data['paymentId'] ?? data['PaymentID'] ?? '',
                           });
                         }
                       }
@@ -277,12 +282,10 @@ class _BenefitPaymentViewState extends State<BenefitPaymentView> {
                 },
                 onReceivedError: (controller, request, error) {
                   if (kDebugMode) {
-                    debugPrint(
-                        '[BENEFIT_WEBVIEW] Error: ${error.description}');
+                    debugPrint('[BENEFIT_WEBVIEW] Error: ${error.description}');
                   }
                 },
-                onConsoleMessage: (controller, consoleMessage) {
-                },
+                onConsoleMessage: (controller, consoleMessage) {},
               ),
       ),
     );

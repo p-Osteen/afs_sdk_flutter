@@ -10,10 +10,10 @@ class BenefitService {
   final bool isTest;
 
   static const String _ivString = "PGKEYENCDECIVSPC";
-  
-  String get _baseUrl => isTest 
-    ? "https://test.benefit-gateway.bh/payment/API/hosted.htm"
-    : "https://www.benefit-gateway.bh/payment/API/hosted.htm";
+
+  String get _baseUrl => isTest
+      ? "https://test.benefit-gateway.bh/payment/API/hosted.htm"
+      : "https://www.benefit-gateway.bh/payment/API/hosted.htm";
 
   BenefitService({
     required this.transportalId,
@@ -25,25 +25,28 @@ class BenefitService {
   /// Encrypts [plainText] using AES-256-CBC and the [resourceKey].
   String encrypt(String plainText) {
     final encodedText = Uri.encodeComponent(plainText);
-    
+
     final key = Key.fromUtf8(resourceKey);
     final iv = IV.fromUtf8(_ivString);
-    
+
     final encrypter = Encrypter(AES(key, mode: AESMode.cbc, padding: 'PKCS7'));
     final encrypted = encrypter.encrypt(encodedText, iv: iv);
-    
+
     // The gateway expects Hex string in uppercase
-    return encrypted.bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join('').toUpperCase();
+    return encrypted.bytes
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join('')
+        .toUpperCase();
   }
 
   /// Decrypts [hexString] using AES-256-CBC and the [resourceKey].
   String decrypt(String hexString) {
     final key = Key.fromUtf8(resourceKey);
     final iv = IV.fromUtf8(_ivString);
-    
+
     final encrypted = Encrypted(Uint8List.fromList(_hexToBytes(hexString)));
     final encrypter = Encrypter(AES(key, mode: AESMode.cbc, padding: 'PKCS7'));
-    
+
     final decrypted = encrypter.decrypt(encrypted, iv: iv);
     return Uri.decodeComponent(decrypted);
   }
@@ -81,11 +84,16 @@ class BenefitService {
     final result = data['result']?.toString().toUpperCase();
     if (result == 'CAPTURED') return 'Approved';
     if (result == 'CANCELED') return 'Transaction was canceled by user';
-    if (result == 'DENIED BY RISK') return 'Maximum number of transactions exceeded';
-    if (result == 'HOST TIMEOUT') return 'Unable to process transaction temporarily';
+    if (result == 'DENIED BY RISK') {
+      return 'Maximum number of transactions exceeded';
+    }
+    if (result == 'HOST TIMEOUT') {
+      return 'Unable to process transaction temporarily';
+    }
 
     final authRespCode = data['authRespCode']?.toString();
-    if (authRespCode != null && authResponseMessages.containsKey(authRespCode)) {
+    if (authRespCode != null &&
+        authResponseMessages.containsKey(authRespCode)) {
       return authResponseMessages[authRespCode]!;
     }
 
@@ -96,18 +104,22 @@ class BenefitService {
   Future<Map<String, String>> initiatePayment({
     required double amount,
     String? trackId,
-    required String responseUrl,
-    required String errorUrl,
     String? udf2,
     String? udf3,
     String? udf4,
     String? udf5,
   }) async {
-    final effectiveTrackId = trackId ?? 'TRK_${DateTime.now().millisecondsSinceEpoch}';
+    final effectiveTrackId =
+        trackId ?? 'TRK_${DateTime.now().millisecondsSinceEpoch}';
+    // These URLs are intercepted by the JS-Bridge; they do not need to exist
+    const responseUrl = 'https://benefit.internal/success';
+    const errorUrl = 'https://benefit.internal/error';
 
     final requestData = [
       {
-        "amt": amount.toStringAsFixed(3), // Benefit usually uses 3 decimal places for BHD
+        "amt": amount.toStringAsFixed(
+          3,
+        ), // Benefit usually uses 3 decimal places for BHD
         "action": "1",
         "password": transportalPassword,
         "id": transportalId,
@@ -120,7 +132,7 @@ class BenefitService {
         "udf5": udf5 ?? "",
         "responseURL": responseUrl,
         "errorURL": errorUrl,
-      }
+      },
     ];
 
     final jsonPayload = jsonEncode(requestData);
@@ -130,10 +142,7 @@ class BenefitService {
       Uri.parse(_baseUrl),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode([
-        {
-          "id": transportalId,
-          "trandata": encryptedData,
-        }
+        {"id": transportalId, "trandata": encryptedData},
       ]),
     );
 
@@ -157,7 +166,7 @@ class BenefitService {
               final uri = Uri.parse(pageUrl);
               paymentId = uri.queryParameters['PaymentID'] ?? '';
             } catch (_) {}
-          } 
+          }
           // Case 2: Result is in "PaymentID:URL" or "PaymentID:RelativeURL" format
           else if (result.contains(':')) {
             final parts = result.split(':');
@@ -188,21 +197,20 @@ class BenefitService {
 
           // Ensure PaymentID is in the query params if missing
           if (paymentId.isNotEmpty && !pageUrl.contains('PaymentID=')) {
-            pageUrl = pageUrl.contains('?') 
-              ? "$pageUrl&PaymentID=$paymentId" 
-              : "$pageUrl?PaymentID=$paymentId";
+            pageUrl = pageUrl.contains('?')
+                ? "$pageUrl&PaymentID=$paymentId"
+                : "$pageUrl?PaymentID=$paymentId";
           }
-          
+
           if (kDebugMode) {
             debugPrint('[BENEFIT_SERVICE] Final Payment Page URL: $pageUrl');
           }
 
-          return {
-            "paymentId": paymentId,
-            "paymentPageUrl": pageUrl,
-          };
+          return {"paymentId": paymentId, "paymentPageUrl": pageUrl};
         } else {
-          throw Exception("Benefit Initialization Failed: ${item['errorText'] ?? 'Unknown Error'}");
+          throw Exception(
+            "Benefit Initialization Failed: ${item['errorText'] ?? 'Unknown Error'}",
+          );
         }
       }
       throw Exception("Unexpected Response Format: ${response.body}");

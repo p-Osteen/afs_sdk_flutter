@@ -37,7 +37,8 @@ class _PaymentPageState extends State<PaymentPage>
     super.initState();
 
     final transportalId = dotenv.env['BENEFIT_TRANSPORTAL_ID'] ?? '';
-    final transportalPassword = dotenv.env['BENEFIT_TRANSPORTAL_PASSWORD'] ?? '';
+    final transportalPassword =
+        dotenv.env['BENEFIT_TRANSPORTAL_PASSWORD'] ?? '';
     final resourceKey = dotenv.env['BENEFIT_RESOURCE_KEY'] ?? '';
     final isTest = dotenv.env['BENEFIT_IS_TEST']?.toLowerCase() == 'true';
 
@@ -84,15 +85,7 @@ class _PaymentPageState extends State<PaymentPage>
     try {
       final amount = double.tryParse(_amountController.text) ?? 10.500;
 
-      // These URLs are intercepted by the JS-Bridge; they do not need to exist
-      const responseUrl = 'https://benefit.internal/success';
-      const errorUrl = 'https://benefit.internal/error';
-
-      final result = await _benefitService.initiatePayment(
-        amount: amount,
-        responseUrl: responseUrl,
-        errorUrl: errorUrl,
-      );
+      final result = await _benefitService.initiatePayment(amount: amount);
 
       if (mounted) {
         setState(() {
@@ -104,8 +97,6 @@ class _PaymentPageState extends State<PaymentPage>
           MaterialPageRoute(
             builder: (context) => BenefitPaymentView(
               paymentPageUrl: result['paymentPageUrl']!,
-              responseUrl: responseUrl,
-              errorUrl: errorUrl,
               benefitService: _benefitService,
               onPaymentResult: (data) {
                 _handlePaymentResult(data);
